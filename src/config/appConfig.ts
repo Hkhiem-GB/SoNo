@@ -5,7 +5,7 @@ export const APP_CONFIG = {
   dbName: 'sono_db',
   dbVersion: 1,
   defaultLanguage: 'vi' as const,
-  defaultTheme: 'system' as const,
+  defaultTheme: 'light' as const,
   defaultCurrency: 'VND',
   githubRepo: 'https://github.com/hoka/sono',
 } as const;

@@ -1,70 +1,130 @@
 import { dbManager } from '@/database/sqliteConnection';
-import { debtRepository } from '@/repositories/debtRepository';
-import type { Payment } from '@/types';
+import type { PaymentHistoryItem } from '@/types';
+import { generateId } from '@/utils/id';
 
-interface PaymentRow {
+interface PaymentSqlRow {
   id: string;
-  debt_id: string;
+  activity_id: string;
   amount: number;
-  payment_date: string;
+  paid_at: string;
   note: string | null;
-  created_at: string;
 }
 
 export const paymentRepository = {
-  async getByDebtId(debtId: string): Promise<Payment[]> {
+  /**
+   * Record a partial or full payment for an activity inside an atomic SQLite transaction.
+   *
+   * Business Rules:
+   * 1. Payment amount must be integer > 0.
+   * 2. Payment amount must not exceed remaining_amount.
+   * 3. Insert record into payment_history.
+   * 4. Update remaining_amount = remaining_amount - amount.
+   * 5. If new remaining_amount == 0, update status to 'PAID'.
+   * 6. Both operations must occur in the SAME transaction.
+   */
+  async recordPayment(
+    activityId: string,
+    amount: number,
+    note?: string
+  ): Promise<{ newRemaining: number; isFullyPaid: boolean }> {
+    const intAmount = Math.round(amount);
+    if (intAmount <= 0) {
+      throw new Error('Số tiền thanh toán phải là số nguyên dương lớn hơn 0.');
+    }
+
+    return await dbManager.transaction(async () => {
+      // 1. Fetch current activity details within transaction
+      const rows = await dbManager.query<{
+        id: string;
+        remaining_amount: number;
+        original_amount: number;
+        status: string;
+      }>(
+        'SELECT id, remaining_amount, original_amount, status FROM debt_activities WHERE id = ?;',
+        [activityId]
+      );
+
+      if (rows.length === 0) {
+        throw new Error('Không tìm thấy hoạt động nợ.');
+      }
+
+      const activity = rows[0];
+      const currentRemaining = Math.round(activity.remaining_amount);
+
+      if (activity.status === 'PAID' || currentRemaining <= 0) {
+        throw new Error('Khoản nợ này đã được thanh toán toàn bộ trước đó.');
+      }
+
+      if (intAmount > currentRemaining) {
+        throw new Error(
+          `Số tiền thanh toán (${intAmount.toLocaleString('vi-VN')} VNĐ) không được vượt quá số nợ còn lại (${currentRemaining.toLocaleString('vi-VN')} VNĐ).`
+        );
+      }
+
+      const newRemaining = Math.max(0, currentRemaining - intAmount);
+      const isFullyPaid = newRemaining === 0;
+      const newStatus = isFullyPaid ? 'PAID' : 'UNPAID';
+      const paymentId = generateId();
+      const paidAt = new Date().toISOString();
+
+      // 2. Insert record into payment_history
+      await dbManager.run(
+        `INSERT INTO payment_history (id, activity_id, amount, paid_at, note)
+         VALUES (?, ?, ?, ?, ?);`,
+        [paymentId, activityId, intAmount, paidAt, note?.trim() || null]
+      );
+
+      // 3. Update debt_activities remaining_amount and status
+      await dbManager.run(
+        `UPDATE debt_activities
+         SET remaining_amount = ?, status = ?
+         WHERE id = ?;`,
+        [newRemaining, newStatus, activityId]
+      );
+
+      return {
+        newRemaining,
+        isFullyPaid,
+      };
+    });
+  },
+
+  /**
+   * Get payment history for a specific activity
+   */
+  async getByActivityId(activityId: string): Promise<PaymentHistoryItem[]> {
     const sql = `
-      SELECT id, debt_id, amount, payment_date, note, created_at
-      FROM payments
-      WHERE debt_id = ?
-      ORDER BY payment_date DESC, created_at DESC;
+      SELECT id, activity_id, amount, paid_at, note
+      FROM payment_history
+      WHERE activity_id = ?
+      ORDER BY paid_at DESC;
     `;
-    const rows = await dbManager.query<PaymentRow>(sql, [debtId]);
+    const rows = await dbManager.query<PaymentSqlRow>(sql, [activityId]);
     return rows.map((r) => ({
       id: r.id,
-      debtId: r.debt_id,
-      amount: r.amount,
-      paymentDate: r.payment_date,
+      activityId: r.activity_id,
+      amount: Math.round(r.amount),
+      paidAt: r.paid_at,
       note: r.note || undefined,
-      createdAt: r.created_at,
     }));
   },
 
-  async recordPayment(payment: {
-    id: string;
-    debtId: string;
-    amount: number;
-    paymentDate: string;
-    note?: string;
-  }): Promise<void> {
-    const now = new Date().toISOString();
+  /**
+   * Get all payments across the entire system
+   */
+  async getAll(): Promise<PaymentHistoryItem[]> {
     const sql = `
-      INSERT INTO payments (id, debt_id, amount, payment_date, note, created_at)
-      VALUES (?, ?, ?, ?, ?, ?);
+      SELECT id, activity_id, amount, paid_at, note
+      FROM payment_history
+      ORDER BY paid_at DESC;
     `;
-    await dbManager.run(sql, [
-      payment.id,
-      payment.debtId,
-      payment.amount,
-      payment.paymentDate,
-      payment.note?.trim() || null,
-      now,
-    ]);
-
-    // Update debt paid and remaining balance
-    await debtRepository.applyPayment(payment.debtId, payment.amount);
-  },
-
-  async delete(paymentId: string): Promise<void> {
-    const getSql = `SELECT debt_id, amount FROM payments WHERE id = ?;`;
-    const rows = await dbManager.query<{ debt_id: string; amount: number }>(getSql, [paymentId]);
-    if (rows.length === 0) return;
-
-    const { debt_id, amount } = rows[0];
-    const deleteSql = `DELETE FROM payments WHERE id = ?;`;
-    await dbManager.run(deleteSql, [paymentId]);
-
-    // Reverse payment amount on debt
-    await debtRepository.applyPayment(debt_id, -amount);
+    const rows = await dbManager.query<PaymentSqlRow>(sql);
+    return rows.map((r) => ({
+      id: r.id,
+      activityId: r.activity_id,
+      amount: Math.round(r.amount),
+      paidAt: r.paid_at,
+      note: r.note || undefined,
+    }));
   },
 };

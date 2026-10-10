@@ -1,104 +1,130 @@
-import React, { useState } from 'react';
-import { DbProvider, useDb } from '@/context/DbContext';
+import React, { useState, useMemo } from 'react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { DebtProvider, useDebtStore } from '@/context/DebtContext';
+import { SplashScreen } from '@/components/splash/SplashScreen';
 import { TopAppBar } from '@/components/layout/TopAppBar';
-import { BottomNav, type TabType } from '@/components/layout/BottomNav';
-import { DebtsView } from '@/components/debts/DebtsView';
-import { PeopleView } from '@/components/people/PeopleView';
-import { ReportsView } from '@/components/reports/ReportsView';
-import { SettingsView } from '@/components/settings/SettingsView';
-import { Wallet, Loader2 } from 'lucide-react';
-import type { Person } from '@/types';
+import { BottomNav, type MainTab } from '@/components/layout/BottomNav';
+import { PersonListView } from '@/components/debts/PersonListView';
+import { PersonDetailView } from '@/components/debts/PersonDetailView';
+import { SettingsPage } from '@/components/settings/SettingsPage';
 
-const MainContent: React.FC = () => {
-  const { isReady, error } = useDb();
-  const [activeTab, setActiveTab] = useState<TabType>('debts');
-  const [isAddDebtOpen, setIsAddDebtOpen] = useState(false);
-  const [presetPerson, setPresetPerson] = useState<{ id: string; name: string } | null>(null);
+const MainApp: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
+  const [activeTab, setActiveTab] = useState<MainTab>('debtors');
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
-        <div className="max-w-md w-full bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-rose-200 dark:border-rose-900 text-center space-y-3">
-          <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center mx-auto">
-            !
-          </div>
-          <h2 className="text-lg font-bold">Lỗi khởi tạo SQLite</h2>
-          <p className="text-xs text-slate-500">{error}</p>
-        </div>
-      </div>
-    );
-  }
+  const { isDbReady, isLoading, dbError, refreshData, getPerson } = useDebtStore();
 
-  if (!isReady) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 space-y-3">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 animate-pulse">
-          <Wallet className="w-8 h-8" />
-        </div>
-        <div className="flex items-center space-x-2 text-sm font-semibold text-slate-500">
-          <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
-          <span>Khởi tạo cơ sở dữ liệu SQLite...</span>
-        </div>
-      </div>
-    );
-  }
+  const handleTabChange = (tab: MainTab) => {
+    setActiveTab(tab);
+    setSelectedPersonId(null); // Return to list view on tab switch
+  };
+
+  // Ready only when SQLite is initialized and initial data has been queried into state (or error)
+  const isDataReady = (isDbReady && !isLoading) || !!dbError;
+
+  // Determine current active section to style the main background matching the card color
+  const currentMainTheme = useMemo(() => {
+    if (selectedPersonId) {
+      const person = getPerson(selectedPersonId);
+      return person?.type === 'creditor' ? 'creditor' : 'debtor';
+    }
+    if (activeTab === 'debtors') return 'debtor';
+    if (activeTab === 'creditors') return 'creditor';
+    return 'settings';
+  }, [selectedPersonId, activeTab, getPerson]);
+
+  // Main background is a gentle/softer version of the total card gradient (independent of dark mode)
+  const mainBgClass = useMemo(() => {
+    if (currentMainTheme === 'debtor') return 'bg-[#e6f7f0]'; // Soft pale green/emerald matching card
+    if (currentMainTheme === 'creditor') return 'bg-[#fbebee]'; // Soft pale rose/pink matching card
+    return 'bg-[#f1f5f9]'; // Soft neutral slate for settings
+  }, [currentMainTheme]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors selection:bg-indigo-500 selection:text-white">
-      {/* Top Header with Notch Safe Area */}
-      <TopAppBar />
+    <>
+      {/* Stage 1: Seamless Splash Screen with SQLite readiness sync & hard timeout fallback */}
+      {showSplash && (
+        <SplashScreen
+          onFinish={() => setShowSplash(false)}
+          isReady={isDataReady}
+        />
+      )}
 
-      {/* Main Tab Screen Container */}
-      <main className="flex-1 max-w-md w-full mx-auto px-4 pt-4 pb-safe-nav">
-        {activeTab === 'debts' && (
-          <DebtsView
-            isAddModalOpen={isAddDebtOpen}
-            onCloseAddModal={() => {
-              setIsAddDebtOpen(false);
-              setPresetPerson(null);
-            }}
-            presetPerson={presetPerson}
-          />
+      {/* Stage 2: Main Application Interface (Main area maintains its tab color, Dark mode only affects Header & Sidebar) */}
+      <div className={`min-h-screen ${mainBgClass} text-slate-900 flex flex-col transition-colors duration-300 selection:bg-indigo-500 selection:text-white`}>
+        {/* Sticky Top App Bar with Notch Padding - Adapts to Dark Mode */}
+        <TopAppBar />
+
+        {/* Content Container with Bottom Nav Safe Padding - Independent of Dark Mode */}
+        <main className="flex-1 max-w-md w-full mx-auto px-4 pt-3 pb-safe-nav">
+          {dbError ? (
+            <div className="py-16 px-4 text-center space-y-4 animate-in fade-in duration-300">
+              <div className="w-16 h-16 rounded-3xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-500 mx-auto flex items-center justify-center shadow-lg shadow-rose-500/10">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                  Không thể kết nối cơ sở dữ liệu
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+                  {dbError}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => refreshData()}
+                className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-indigo-600/20 inline-flex items-center space-x-2 transition"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Thử lại kết nối</span>
+              </button>
+            </div>
+          ) : selectedPersonId ? (
+            <PersonDetailView
+              personId={selectedPersonId}
+              onBack={() => setSelectedPersonId(null)}
+            />
+          ) : (
+            <>
+              {activeTab === 'debtors' && (
+                <PersonListView
+                  type="debtor"
+                  onSelectPerson={(id) => setSelectedPersonId(id)}
+                />
+              )}
+
+              {activeTab === 'creditors' && (
+                <PersonListView
+                  type="creditor"
+                  onSelectPerson={(id) => setSelectedPersonId(id)}
+                />
+              )}
+
+              {activeTab === 'settings' && <SettingsPage />}
+            </>
+          )}
+        </main>
+
+        {/* Bottom Navigation with Safe Area Inset */}
+        {!selectedPersonId && !dbError && (
+          <BottomNav activeTab={activeTab} onChangeTab={handleTabChange} />
         )}
-
-        {activeTab === 'people' && (
-          <PeopleView
-            onAddDebtForPerson={(person: Person) => {
-              setPresetPerson({ id: person.id, name: person.name });
-              setActiveTab('debts');
-              setIsAddDebtOpen(true);
-            }}
-          />
-        )}
-
-        {activeTab === 'reports' && <ReportsView />}
-
-        {activeTab === 'settings' && <SettingsView />}
-      </main>
-
-      {/* Bottom Nav Bar with Gesture Safe Area & FAB */}
-      <BottomNav
-        activeTab={activeTab}
-        onChangeTab={setActiveTab}
-        onOpenAddModal={() => {
-          setPresetPerson(null);
-          setIsAddDebtOpen(true);
-        }}
-      />
-    </div>
+      </div>
+    </>
   );
 };
 
 export default function App() {
   return (
-    <DbProvider>
-      <ThemeProvider>
-        <LanguageProvider>
-          <MainContent />
-        </LanguageProvider>
-      </ThemeProvider>
-    </DbProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <DebtProvider>
+          <MainApp />
+        </DebtProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

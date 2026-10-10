@@ -12,12 +12,21 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>('vi');
+  // Read instant local storage preference to prevent UI text flash
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sono_language') as Language;
+      if (stored === 'vi' || stored === 'en') {
+        return stored;
+      }
+    }
+    return 'vi';
+  });
 
   useEffect(() => {
-    // Load initial language preference
-    settingsRepository.get('language', 'vi').then((savedLang) => {
-      if (savedLang === 'vi' || savedLang === 'en') {
+    // Sync with persisted settings in SQLite
+    settingsRepository.get('language', language).then((savedLang) => {
+      if ((savedLang === 'vi' || savedLang === 'en') && savedLang !== language) {
         setLanguageState(savedLang);
       }
     });
@@ -25,7 +34,14 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const setLanguage = async (newLang: Language) => {
     setLanguageState(newLang);
-    await settingsRepository.set('language', newLang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sono_language', newLang);
+    }
+    try {
+      await settingsRepository.set('language', newLang);
+    } catch (e) {
+      console.warn('[LanguageContext] Failed to persist language to SQLite:', e);
+    }
   };
 
   const t = (key: TranslationKey, params?: Record<string, string | number>): string => {

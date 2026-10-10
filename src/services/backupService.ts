@@ -1,170 +1,340 @@
 import { dbManager } from '@/database/sqliteConnection';
-import { generateId } from '@/utils/id';
+import { APP_CONFIG } from '@/config/appConfig';
+import { seedInitialDataIfEmpty } from '@/database/seed';
 
-export interface BackupData {
+export interface BackupPerson {
+  id: string;
+  name: string;
+  type: 'DEBTOR' | 'CREDITOR';
+  created_at: string;
+}
+
+export interface BackupDebtActivity {
+  id: string;
+  person_id: string;
+  description: string;
+  created_at: string;
+  original_amount: number;
+  remaining_amount: number;
+  status: 'UNPAID' | 'PAID';
+}
+
+export interface BackupPaymentHistory {
+  id: string;
+  activity_id: string;
+  amount: number;
+  paid_at: string;
+  note?: string | null;
+}
+
+export interface BackupPackage {
   version: number;
-  exportedAt: string;
-  people: Array<{
-    id: string;
-    name: string;
-    phone?: string | null;
-    note?: string | null;
-    created_at: string;
-    updated_at: string;
-  }>;
-  debts: Array<{
-    id: string;
-    person_id: string;
-    type: 'owe_me' | 'i_owe';
-    amount: number;
-    paid_amount: number;
-    remaining_amount: number;
-    note?: string | null;
-    due_date?: string | null;
-    is_settled: number;
-    created_at: string;
-    updated_at: string;
-  }>;
-  payments: Array<{
-    id: string;
-    debt_id: string;
-    amount: number;
-    payment_date: string;
-    note?: string | null;
-    created_at: string;
-  }>;
+  app_id: string;
+  exported_at: string;
+  people: BackupPerson[];
+  debt_activities: BackupDebtActivity[];
+  payment_history: BackupPaymentHistory[];
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+  summary?: {
+    peopleCount: number;
+    activitiesCount: number;
+    paymentsCount: number;
+    exportedAt: string;
+    version: number;
+  };
+  data?: BackupPackage;
 }
 
 export const backupService = {
-  async exportData(): Promise<string> {
-    const people = await dbManager.query<BackupData['people'][0]>('SELECT * FROM people;');
-    const debts = await dbManager.query<BackupData['debts'][0]>('SELECT * FROM debts;');
-    const payments = await dbManager.query<BackupData['payments'][0]>('SELECT * FROM payments;');
+  /**
+   * Export all data to JSON string conforming to Step 5 specification
+   */
+  async exportData(): Promise<BackupPackage> {
+    const people = await dbManager.query<BackupPerson>(
+      'SELECT id, name, type, created_at FROM people ORDER BY created_at ASC;'
+    );
+    const debt_activities = await dbManager.query<BackupDebtActivity>(
+      'SELECT id, person_id, description, created_at, original_amount, remaining_amount, status FROM debt_activities ORDER BY created_at ASC;'
+    );
+    const payment_history = await dbManager.query<BackupPaymentHistory>(
+      'SELECT id, activity_id, amount, paid_at, note FROM payment_history ORDER BY paid_at ASC;'
+    );
 
-    const data: BackupData = {
+    const backup: BackupPackage = {
       version: 1,
-      exportedAt: new Date().toISOString(),
-      people,
-      debts,
-      payments,
+      app_id: APP_CONFIG.appId,
+      exported_at: new Date().toISOString(),
+      people: people.map((p) => ({
+        id: String(p.id),
+        name: String(p.name).trim(),
+        type: (String(p.type).toUpperCase() === 'CREDITOR' ? 'CREDITOR' : 'DEBTOR') as 'DEBTOR' | 'CREDITOR',
+        created_at: String(p.created_at),
+      })),
+      debt_activities: debt_activities.map((da) => ({
+        id: String(da.id),
+        person_id: String(da.person_id),
+        description: String(da.description).trim(),
+        created_at: String(da.created_at),
+        original_amount: Math.round(Number(da.original_amount)),
+        remaining_amount: Math.round(Number(da.remaining_amount)),
+        status: (String(da.status).toUpperCase() === 'PAID' ? 'PAID' : 'UNPAID') as 'UNPAID' | 'PAID',
+      })),
+      payment_history: payment_history.map((ph) => ({
+        id: String(ph.id),
+        activity_id: String(ph.activity_id),
+        amount: Math.round(Number(ph.amount)),
+        paid_at: String(ph.paid_at),
+        note: ph.note ? String(ph.note).trim() : null,
+      })),
     };
 
-    return JSON.stringify(data, null, 2);
+    return backup;
   },
 
-  async importData(jsonContent: string): Promise<boolean> {
+  /**
+   * Triggers file download or native Android share sheet for the exported backup JSON
+   */
+  async downloadOrShareBackup(): Promise<{ fileName: string; method: 'share' | 'download' }> {
+    const backup = await this.exportData();
+    const jsonString = JSON.stringify(backup, null, 2);
+    const now = new Date();
+    const timestamp = now
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace('T', '_')
+      .split('.')[0];
+    const fileName = `sono_backup_${timestamp}.json`;
+
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+
+    // 1. Check if native Web Share API with files is available (ideal on Android WebView)
+    if (typeof navigator !== 'undefined' && navigator.canShare) {
+      try {
+        const file = new File([blob], fileName, { type: 'application/json' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `Sổ Nợ - Bản sao lưu ${timestamp}`,
+            text: `Bản sao lưu dữ liệu Sổ Nợ ngày ${now.toLocaleDateString('vi-VN')}`,
+          });
+          return { fileName, method: 'share' };
+        }
+      } catch (err: unknown) {
+        // If user cancelled the share dialog, do not trigger fallback download
+        if (err instanceof Error && err.name === 'AbortError') {
+          return { fileName, method: 'share' };
+        }
+        console.warn('[Backup] Share API failed, falling back to download:', err);
+      }
+    }
+
+    // 2. Standard browser / WebView file download fallback
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 200);
+
+    return { fileName, method: 'download' };
+  },
+
+  /**
+   * Deeply validates the structure, foreign keys, IDs, amounts, and statuses of a backup JSON file
+   */
+  validateBackup(jsonString: string): ValidationResult {
+    let parsed: unknown;
     try {
-      const data = JSON.parse(jsonContent) as BackupData;
-      if (!data.people || !data.debts) {
-        throw new Error('Dữ liệu sao lưu không hợp lệ.');
+      parsed = JSON.parse(jsonString);
+    } catch {
+      return { isValid: false, error: 'Định dạng tệp không phải là JSON hợp lệ.' };
+    }
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { isValid: false, error: 'Tệp sao lưu phải là một đối tượng JSON hợp lệ.' };
+    }
+
+    const pkg = parsed as Record<string, unknown>;
+
+    // 1. Version check
+    if (typeof pkg.version !== 'number' || pkg.version <= 0) {
+      return { isValid: false, error: 'Thiếu hoặc sai số phiên bản dữ liệu (version).' };
+    }
+
+    // 2. Array checks
+    if (!Array.isArray(pkg.people)) {
+      return { isValid: false, error: 'Thiếu danh sách người (people).' };
+    }
+    if (!Array.isArray(pkg.debt_activities)) {
+      return { isValid: false, error: 'Thiếu danh sách hoạt động nợ (debt_activities).' };
+    }
+    if (!Array.isArray(pkg.payment_history)) {
+      return { isValid: false, error: 'Thiếu danh sách lịch sử thanh toán (payment_history).' };
+    }
+
+    // 3. Validate people items
+    const personIds = new Set<string>();
+    for (let i = 0; i < pkg.people.length; i++) {
+      const p = pkg.people[i] as Record<string, unknown>;
+      if (!p.id || typeof p.id !== 'string') {
+        return { isValid: false, error: `Người thứ ${i + 1} bị thiếu mã định danh (id).` };
+      }
+      if (!p.name || typeof p.name !== 'string' || !p.name.trim()) {
+        return { isValid: false, error: `Người có ID "${p.id}" bị thiếu tên.` };
+      }
+      const type = String(p.type).toUpperCase();
+      if (type !== 'DEBTOR' && type !== 'CREDITOR') {
+        return { isValid: false, error: `Người "${p.name}" có loại không hợp lệ (phải là DEBTOR hoặc CREDITOR).` };
+      }
+      if (personIds.has(p.id)) {
+        return { isValid: false, error: `Trùng lặp mã người (id: ${p.id}).` };
+      }
+      personIds.add(p.id);
+    }
+
+    // 4. Validate debt_activities items
+    const activityIds = new Set<string>();
+    for (let i = 0; i < pkg.debt_activities.length; i++) {
+      const a = pkg.debt_activities[i] as Record<string, unknown>;
+      if (!a.id || typeof a.id !== 'string') {
+        return { isValid: false, error: `Hoạt động thứ ${i + 1} bị thiếu mã định danh (id).` };
+      }
+      if (!a.person_id || typeof a.person_id !== 'string') {
+        return { isValid: false, error: `Hoạt động "${a.id}" thiếu mã người liên kết (person_id).` };
+      }
+      // Foreign Key check: person_id must exist in people
+      if (!personIds.has(a.person_id)) {
+        return {
+          isValid: false,
+          error: `Hoạt động "${a.id}" tham chiếu đến người không tồn tại (person_id: ${a.person_id}).`,
+        };
+      }
+      if (!a.description || typeof a.description !== 'string' || !a.description.trim()) {
+        return { isValid: false, error: `Hoạt động "${a.id}" thiếu mô tả nội dung.` };
       }
 
-      await dbManager.execute('DELETE FROM payments;');
-      await dbManager.execute('DELETE FROM debts;');
+      const origAmount = Number(a.original_amount);
+      if (!Number.isInteger(origAmount) || origAmount <= 0) {
+        return { isValid: false, error: `Hoạt động "${a.description}" có số tiền ban đầu không hợp lệ (> 0 VNĐ).` };
+      }
+
+      const remAmount = Number(a.remaining_amount);
+      if (!Number.isInteger(remAmount) || remAmount < 0 || remAmount > origAmount) {
+        return { isValid: false, error: `Hoạt động "${a.description}" có số tiền còn nợ không hợp lệ (0 <= nợ <= ${origAmount}).` };
+      }
+
+      const status = String(a.status).toUpperCase();
+      if (status !== 'UNPAID' && status !== 'PAID') {
+        return { isValid: false, error: `Hoạt động "${a.description}" có trạng thái không hợp lệ (UNPAID hoặc PAID).` };
+      }
+
+      if (remAmount === 0 && status !== 'PAID') {
+        return { isValid: false, error: `Hoạt động "${a.description}" có số dư 0 VNĐ nhưng trạng thái chưa là PAID.` };
+      }
+
+      if (activityIds.has(a.id)) {
+        return { isValid: false, error: `Trùng lặp mã hoạt động (id: ${a.id}).` };
+      }
+      activityIds.add(a.id);
+    }
+
+    // 5. Validate payment_history items
+    for (let i = 0; i < pkg.payment_history.length; i++) {
+      const ph = pkg.payment_history[i] as Record<string, unknown>;
+      if (!ph.id || typeof ph.id !== 'string') {
+        return { isValid: false, error: `Lần thanh toán thứ ${i + 1} thiếu mã định danh (id).` };
+      }
+      if (!ph.activity_id || typeof ph.activity_id !== 'string') {
+        return { isValid: false, error: `Lần thanh toán "${ph.id}" thiếu mã hoạt động liên kết.` };
+      }
+      // Foreign Key check: activity_id must exist in debt_activities
+      if (!activityIds.has(ph.activity_id)) {
+        return {
+          isValid: false,
+          error: `Lần thanh toán "${ph.id}" tham chiếu đến hoạt động không tồn tại (activity_id: ${ph.activity_id}).`,
+        };
+      }
+      const payAmount = Number(ph.amount);
+      if (!Number.isInteger(payAmount) || payAmount <= 0) {
+        return { isValid: false, error: `Lần thanh toán "${ph.id}" có số tiền không hợp lệ (> 0 VNĐ).` };
+      }
+    }
+
+    const data = pkg as unknown as BackupPackage;
+
+    return {
+      isValid: true,
+      summary: {
+        peopleCount: data.people.length,
+        activitiesCount: data.debt_activities.length,
+        paymentsCount: data.payment_history.length,
+        exportedAt: String(data.exported_at || ''),
+        version: Number(data.version || 1),
+      },
+      data,
+    };
+  },
+
+  /**
+   * Restores data from a validated BackupPackage inside an atomic SQLite transaction.
+   * If any step errors, rolls back automatically preserving original database.
+   */
+  async restoreBackup(backup: BackupPackage): Promise<void> {
+    await dbManager.transaction(async () => {
+      // 1. Wipe existing data in foreign-key safe order
+      await dbManager.execute('DELETE FROM payment_history;');
+      await dbManager.execute('DELETE FROM debt_activities;');
       await dbManager.execute('DELETE FROM people;');
 
-      for (const p of data.people) {
+      // 2. Insert people
+      for (const p of backup.people) {
         await dbManager.run(
-          'INSERT INTO people (id, name, phone, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?);',
-          [p.id, p.name, p.phone || null, p.note || null, p.created_at, p.updated_at],
+          'INSERT INTO people (id, name, type, created_at) VALUES (?, ?, ?, ?);',
+          [p.id, p.name.trim(), p.type.toUpperCase(), p.created_at]
         );
       }
 
-      for (const d of data.debts) {
+      // 3. Insert debt_activities
+      for (const da of backup.debt_activities) {
         await dbManager.run(
-          `INSERT INTO debts (
-            id, person_id, type, amount, paid_amount, remaining_amount, note, due_date, is_settled, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          `INSERT INTO debt_activities (id, person_id, description, created_at, original_amount, remaining_amount, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?);`,
           [
-            d.id,
-            d.person_id,
-            d.type,
-            d.amount,
-            d.paid_amount,
-            d.remaining_amount,
-            d.note || null,
-            d.due_date || null,
-            d.is_settled,
-            d.created_at,
-            d.updated_at,
-          ],
+            da.id,
+            da.person_id,
+            da.description.trim(),
+            da.created_at,
+            Math.round(da.original_amount),
+            Math.round(da.remaining_amount),
+            da.status.toUpperCase(),
+          ]
         );
       }
 
-      if (data.payments) {
-        for (const py of data.payments) {
-          await dbManager.run(
-            'INSERT INTO payments (id, debt_id, amount, payment_date, note, created_at) VALUES (?, ?, ?, ?, ?, ?);',
-            [py.id, py.debt_id, py.amount, py.payment_date, py.note || null, py.created_at],
-          );
-        }
+      // 4. Insert payment_history
+      for (const ph of backup.payment_history) {
+        await dbManager.run(
+          `INSERT INTO payment_history (id, activity_id, amount, paid_at, note)
+           VALUES (?, ?, ?, ?, ?);`,
+          [ph.id, ph.activity_id, Math.round(ph.amount), ph.paid_at, ph.note ? ph.note.trim() : null]
+        );
       }
-
-      return true;
-    } catch (e) {
-      console.error('[Backup] Import failed:', e);
-      throw e;
-    }
+    });
   },
 
+  /**
+   * Seed demo test data if needed
+   */
   async seedDemoDataIfEmpty(): Promise<boolean> {
-    const people = await dbManager.query('SELECT COUNT(*) as count FROM people;');
-    const count = (people[0] as { count: number })?.count ?? 0;
-    if (count > 0) return false;
-
-    const now = new Date();
-    const todayStr = now.toISOString();
-    const futureDate = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
-    const pastDate = new Date(now.getTime() - 3 * 86400000).toISOString().split('T')[0];
-
-    const p1 = generateId();
-    const p2 = generateId();
-    const p3 = generateId();
-
-    await dbManager.run(
-      'INSERT INTO people (id, name, phone, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?);',
-      [p1, 'Nguyễn Văn An', '0901234567', 'Đồng nghiệp công ty', todayStr, todayStr],
-    );
-    await dbManager.run(
-      'INSERT INTO people (id, name, phone, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?);',
-      [p2, 'Trần Thị Mai', '0987654321', 'Bạn học đại học', todayStr, todayStr],
-    );
-    await dbManager.run(
-      'INSERT INTO people (id, name, phone, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?);',
-      [p3, 'Lê Hoàng Nam', '0912349876', 'Cửa hàng tạp hóa', todayStr, todayStr],
-    );
-
-    // Debt 1: An nợ tôi 1,500,000 VND
-    const d1 = generateId();
-    await dbManager.run(
-      `INSERT INTO debts (id, person_id, type, amount, paid_amount, remaining_amount, note, due_date, is_settled, created_at, updated_at)
-       VALUES (?, ?, 'owe_me', 1500000, 500000, 1000000, 'Tiền ăn trưa và cafe tháng này', ?, 0, ?, ?);`,
-      [d1, p1, futureDate, todayStr, todayStr],
-    );
-
-    // Payment for d1
-    await dbManager.run(
-      `INSERT INTO payments (id, debt_id, amount, payment_date, note, created_at)
-       VALUES (?, ?, 500000, ?, 'Đã chuyển khoản trước 500k', ?);`,
-      [generateId(), d1, pastDate, todayStr],
-    );
-
-    // Debt 2: Tôi nợ Mai 500,000 VND
-    const d2 = generateId();
-    await dbManager.run(
-      `INSERT INTO debts (id, person_id, type, amount, paid_amount, remaining_amount, note, due_date, is_settled, created_at, updated_at)
-       VALUES (?, ?, 'i_owe', 500000, 0, 500000, 'Mượn mua sách công nghệ', ?, 0, ?, ?);`,
-      [d2, p2, futureDate, todayStr, todayStr],
-    );
-
-    // Debt 3: Nam nợ tôi 3,000,000 VND (Quá hạn)
-    const d3 = generateId();
-    await dbManager.run(
-      `INSERT INTO debts (id, person_id, type, amount, paid_amount, remaining_amount, note, due_date, is_settled, created_at, updated_at)
-       VALUES (?, ?, 'owe_me', 3000000, 0, 3000000, 'Tiền mượn gấp việc gia đình', ?, 0, ?, ?);`,
-      [d3, p3, pastDate, todayStr, todayStr],
-    );
-
+    await seedInitialDataIfEmpty();
     return true;
   },
 };

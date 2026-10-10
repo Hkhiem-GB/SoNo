@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -35,7 +37,7 @@ body {
 }
 
 .pb-safe-nav {
-  padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), 12px) + 72px);
+  padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), 16px) + 96px);
 }
 
 .pl-safe {

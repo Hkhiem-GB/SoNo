@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
 import { settingsRepository } from '@/repositories/settingsRepository';
@@ -13,66 +13,37 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeMode>('system');
-  const [isDark, setIsDark] = useState<boolean>(false);
-
-  const applyTheme = async (mode: ThemeMode) => {
-    let effectiveDark = false;
-    if (mode === 'dark') {
-      effectiveDark = true;
-    } else if (mode === 'light') {
-      effectiveDark = false;
-    } else {
-      // system
-      effectiveDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-
-    setIsDark(effectiveDark);
-
-    if (effectiveDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-
-    // Configure Android status bar dynamically if native
-    if (Capacitor.isNativePlatform()) {
-      try {
-        await StatusBar.setStyle({
-          style: effectiveDark ? Style.Dark : Style.Light,
-        });
-        await StatusBar.setBackgroundColor({
-          color: effectiveDark ? '#020617' : '#f8fafc',
-        });
-      } catch (err) {
-        // Safe ignore on unsupported platforms
-      }
-    }
-  };
+  const theme: ThemeMode = 'light';
+  const isDark = false;
 
   useEffect(() => {
-    // Load persisted theme from SQLite
-    settingsRepository.get('theme', 'system').then((savedTheme) => {
-      const mode = (savedTheme as ThemeMode) || 'system';
-      setThemeState(mode);
-      applyTheme(mode);
-    });
+    // Ensure document never has dark mode class
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove('dark');
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sono_theme');
+    }
 
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (theme === 'system') {
-        applyTheme('system');
-      }
-    };
+    // Configure Android status bar to crisp light style with pure white background
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setStyle({
+        style: Style.Light,
+      }).catch(() => {});
+      StatusBar.setBackgroundColor({
+        color: '#ffffff',
+      }).catch(() => {});
+    }
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    // Keep database in sync
+    settingsRepository.set('theme', 'light').catch(() => {});
   }, []);
 
-  const setTheme = async (mode: ThemeMode) => {
-    setThemeState(mode);
-    await applyTheme(mode);
-    await settingsRepository.set('theme', mode);
+  const setTheme = async (_mode: ThemeMode) => {
+    // Default locked to light mode
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove('dark');
+    }
   };
 
   return (

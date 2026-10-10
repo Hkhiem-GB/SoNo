@@ -14,6 +14,7 @@ import { useDebtStore } from '@/context/DebtContext';
 import { backupService, type ValidationResult, type BackupPackage } from '@/services/backupService';
 import { RestoreConfirmModal } from '@/components/settings/RestoreConfirmModal';
 import { APP_CONFIG } from '@/config/appConfig';
+import { VietnamFlag, UsFlag } from '@/components/common/FlagIcons';
 import type { Language } from '@/types';
 
 export const SettingsPage: React.FC = () => {
@@ -215,7 +216,11 @@ export const SettingsPage: React.FC = () => {
                   : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
-              <span className="text-base">{lng === 'vi' ? '🇻🇳' : '🇺🇸'}</span>
+              {lng === 'vi' ? (
+                <VietnamFlag className="w-5 h-3.5 rounded-xs shadow-2xs" />
+              ) : (
+                <UsFlag className="w-5 h-3.5 rounded-xs shadow-2xs" />
+              )}
               <span>{lng === 'vi' ? t('languageVi') : t('languageEn')}</span>
             </button>
           ))}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import { VietnamFlag, UsFlag } from '@/components/common/FlagIcons';
 
 export const TopAppBar: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
@@ -21,16 +22,21 @@ export const TopAppBar: React.FC = () => {
           </div>
         </div>
 
-        {/* Right actions: Language pill */}
+        {/* Right actions: Language pill with Vietnam flag on the right */}
         <div className="flex items-center space-x-2">
           {/* Language Toggle Pill */}
           <button
             type="button"
             onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
-            className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200/60 text-xs font-bold text-slate-700 shadow-2xs transition active:scale-95"
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200/60 text-xs font-bold text-slate-700 shadow-2xs transition active:scale-95 cursor-pointer"
             title="Đổi ngôn ngữ / Switch language"
           >
-            {language === 'vi' ? '🇻🇳 VI' : '🇺🇸 EN'}
+            <span>{language === 'vi' ? 'VI' : 'EN'}</span>
+            {language === 'vi' ? (
+              <VietnamFlag className="w-5 h-3.5 rounded-xs shadow-2xs" />
+            ) : (
+              <UsFlag className="w-5 h-3.5 rounded-xs shadow-2xs" />
+            )}
           </button>
         </div>
       </div>

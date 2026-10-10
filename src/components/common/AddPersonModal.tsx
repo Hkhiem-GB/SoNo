@@ -7,7 +7,7 @@ interface AddPersonModalProps {
   isOpen: boolean;
   type: PersonType;
   onClose: () => void;
-  onAdd: (name: string, type: PersonType) => void;
+  onAdd: (name: string, type: PersonType) => Promise<unknown> | void;
 }
 
 export const AddPersonModal: React.FC<AddPersonModalProps> = ({
@@ -19,17 +19,27 @@ export const AddPersonModal: React.FC<AddPersonModalProps> = ({
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError(t('personNamePlaceholder'));
       return;
     }
-    onAdd(name.trim(), type);
-    setName('');
-    setError(null);
-    onClose();
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      await onAdd(name.trim(), type);
+      setName('');
+      onClose();
+    } catch (err: unknown) {
+      console.error('[AddPersonModal] Error adding person:', err);
+      const msg = err instanceof Error ? err.message : 'Lỗi khi thêm người.';
+      setError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const title = type === 'debtor' ? t('addDebtor') : t('addCreditor');
@@ -74,13 +84,14 @@ export const AddPersonModal: React.FC<AddPersonModalProps> = ({
           </button>
           <button
             type="submit"
-            className={`px-6 py-2.5 text-sm font-bold text-white rounded-xl shadow-md transition active:scale-95 ${
+            disabled={isSubmitting}
+            className={`px-6 py-2.5 text-sm font-bold text-white rounded-xl shadow-md transition active:scale-95 disabled:opacity-50 ${
               type === 'debtor'
                 ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
                 : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
             }`}
           >
-            {t('save')}
+            {isSubmitting ? 'Đang lưu...' : t('save')}
           </button>
         </div>
       </form>

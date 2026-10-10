@@ -41,8 +41,12 @@ export const PersonListView: React.FC<PersonListViewProps> = ({
 
   const handleConfirmDelete = async () => {
     if (deletingPerson) {
-      await deletePerson(deletingPerson.id);
-      setDeletingPerson(null);
+      try {
+        await deletePerson(deletingPerson.id);
+        setDeletingPerson(null);
+      } catch (err: unknown) {
+        console.error('[PersonListView] Error deleting person:', err);
+      }
     }
   };
 

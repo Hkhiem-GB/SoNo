@@ -74,15 +74,23 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
 
   const handleMarkPaidConfirm = async () => {
     if (markingPaidActivity) {
-      await markActivityAsPaid(person.id, markingPaidActivity.id);
-      setMarkingPaidActivity(null);
+      try {
+        await markActivityAsPaid(person.id, markingPaidActivity.id);
+        setMarkingPaidActivity(null);
+      } catch (err: unknown) {
+        console.error('[PersonDetailView] Error marking paid:', err);
+      }
     }
   };
 
   const handleDeleteActivityConfirm = async () => {
     if (deletingActivity) {
-      await deleteActivity(person.id, deletingActivity.id);
-      setDeletingActivity(null);
+      try {
+        await deleteActivity(person.id, deletingActivity.id);
+        setDeletingActivity(null);
+      } catch (err: unknown) {
+        console.error('[PersonDetailView] Error deleting activity:', err);
+      }
     }
   };
 

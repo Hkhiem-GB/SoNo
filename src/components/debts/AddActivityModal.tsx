@@ -6,7 +6,7 @@ interface AddActivityModalProps {
   isOpen: boolean;
   personName: string;
   onClose: () => void;
-  onAdd: (data: { title: string; amount: number; date: string }) => void;
+  onAdd: (data: { title: string; amount: number; date: string }) => Promise<void> | void;
 }
 
 export const AddActivityModal: React.FC<AddActivityModalProps> = ({
@@ -20,8 +20,9 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({
   const [amountStr, setAmountStr] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(amountStr.replace(/[^0-9.]/g, ''));
 
@@ -34,16 +35,24 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({
       return;
     }
 
-    onAdd({
-      title: title.trim(),
-      amount,
-      date: date || new Date().toISOString().split('T')[0],
-    });
-
-    setTitle('');
-    setAmountStr('');
-    setError(null);
-    onClose();
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      await onAdd({
+        title: title.trim(),
+        amount: Math.round(amount),
+        date: date || new Date().toISOString().split('T')[0],
+      });
+      setTitle('');
+      setAmountStr('');
+      onClose();
+    } catch (err: unknown) {
+      console.error('[AddActivityModal] Error adding activity:', err);
+      const msg = err instanceof Error ? err.message : 'Lỗi khi thêm hoạt động nợ.';
+      setError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -109,9 +118,10 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-500/20 transition active:scale-95"
+            disabled={isSubmitting}
+            className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-500/20 transition active:scale-95 disabled:opacity-50"
           >
-            {t('save')}
+            {isSubmitting ? 'Đang lưu...' : t('save')}
           </button>
         </div>
       </form>

@@ -7,7 +7,7 @@ interface EditPersonModalProps {
   isOpen: boolean;
   person: Person | null;
   onClose: () => void;
-  onSave: (personId: string, newName: string) => void;
+  onSave: (personId: string, newName: string) => Promise<void> | void;
 }
 
 export const EditPersonModal: React.FC<EditPersonModalProps> = ({
@@ -19,6 +19,7 @@ export const EditPersonModal: React.FC<EditPersonModalProps> = ({
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (person && isOpen) {
@@ -29,14 +30,24 @@ export const EditPersonModal: React.FC<EditPersonModalProps> = ({
 
   if (!person) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError(t('personNamePlaceholder'));
       return;
     }
-    onSave(person.id, name.trim());
-    onClose();
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      await onSave(person.id, name.trim());
+      onClose();
+    } catch (err: unknown) {
+      console.error('[EditPersonModal] Error updating person:', err);
+      const msg = err instanceof Error ? err.message : 'Lỗi khi cập nhật tên.';
+      setError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -76,9 +87,10 @@ export const EditPersonModal: React.FC<EditPersonModalProps> = ({
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-500/20 transition active:scale-95"
+            disabled={isSubmitting}
+            className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-500/20 transition active:scale-95 disabled:opacity-50"
           >
-            {t('save')}
+            {isSubmitting ? 'Đang lưu...' : t('save')}
           </button>
         </div>
       </form>

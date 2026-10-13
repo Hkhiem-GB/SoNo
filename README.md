@@ -1,108 +1,129 @@
-# Sổ Nợ (Debt Book) - Mobile App
+# 📱 Sổ Nợ (SoNo - Personal Debt Ledger)
 
-Ứng dụng cá nhân quản lý sổ ghi nợ (cho vay / đi vay) offline-first trên Android, lưu trữ dữ liệu 100% cục bộ trên thiết bị bằng **SQLite**, không cần backend, không cần tài khoản hay dịch vụ đám mây.
+[![Capacitor](https://img.shields.io/badge/Capacitor-8.5.3-blue.svg)](https://capacitorjs.com/)
+[![React](https://img.shields.io/badge/React-19.2.8-61dafb.svg)](https://react.dev/)
+[![SQLite](https://img.shields.io/badge/SQLite-Native%20Local-003B57.svg)](https://sqlite.org/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4.3.3-38bdf8.svg)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-Private-green.svg)]()
 
----
-
-## 1. Công nghệ sử dụng
-
-- **Frontend:** React 19, TypeScript, Vite 8.
-- **Styling:** Tailwind CSS v4 (Mobile-first, Dark/Light Mode, Safe-area insets cho tai thỏ và thanh điều hướng Android).
-- **Mobile Runtime:** Capacitor 8 (`@capacitor/android`, `@capacitor/core`).
-- **Splash Screen Plugin:** `@capacitor/splash-screen` (2 lớp: Native Splash + React Transition).
-- **Cơ sở dữ liệu:** `@capacitor-community/sqlite` 8.1.1 (chạy SQLite gốc trên Android, hỗ trợ fallback Web với `jeep-sqlite`).
-- **Package Manager:** `pnpm`.
-- **CI/CD:** GitHub Actions (Build APK tự động trên cloud, không cần cài Android Studio).
+Ứng dụng ghi chép và quản lý sổ ghi nợ cá nhân (cho vay / đi vay) **100% Offline-First**, ưu tiên tối đa tính bảo mật và sự riêng tư. Dữ liệu được lưu trữ hoàn toàn cục bộ trên thiết bị bằng **SQLite Native**, không cần máy chủ trung gian, không cần tài khoản hay kết nối mạng Internet.
 
 ---
 
-## 2. Thông tin nhận diện thương hiệu
+## 🌟 Điểm nổi bật & Tính năng chính
 
-- **Tên hiển thị chính thức:** Sổ Nợ
-- **Package ID (App ID):** `com.hoka.sono`
-- **Slogan:** "Quản lý nợ, rõ từng khoản"
-- **Logo biểu tượng:** Cuốn sổ ghi nợ tối giản kết hợp đồng tiền phong thủy xanh ngọc (Emerald / Teal), biểu trưng cho tài chính minh bạch, thanh khoản an tâm.
-- **Bảng màu:**
-  - Nền tối: Deep Navy `#0f172a`
-  - Màu nhấn chính: Indigo `#6366f1` / Violet `#4f46e5`
-  - Con nợ (người nợ mình): Emerald `#10b981` (dòng tiền thu về)
-  - Chủ nợ (mình nợ người ta): Rose `#f43f5e` / Amber (cảnh báo nghĩa vụ chi trả)
+### 1. 💾 Lưu trữ cục bộ & Tự phục hồi dữ liệu (Offline-First Engine)
+- **Native SQLite:** Trên thiết bị Android/iOS, ứng dụng sử dụng trực tiếp engine SQLite gốc của hệ điều hành, đảm bảo tốc độ truy vấn tức thì và tính an toàn cao.
+- **Tự động phục hồi kết nối (Auto-Reconnect):** Cơ chế `ensureOpen` tự động kiểm tra và kết nối lại cơ sở dữ liệu khi mở lại app từ chế độ chạy ngầm hoặc khóa màn hình.
+- **Web Storage Fallback:** Khi chạy thử nghiệm trên trình duyệt Web máy tính, ứng dụng kích hoạt song song WebAssembly (`jeep-sqlite`) và engine dự phòng an toàn (LocalStorage Web Fallback), loại bỏ hoàn toàn hiện tượng nghẽn lưu dữ liệu.
 
----
+### 2. 🛡️ Bảo mật đa tầng (Multi-Layer Security Hardening)
+- **Chống trích xuất dữ liệu qua USB / ADB:** Thiết lập `android:allowBackup="false"` chặn nguy cơ kẻ xấu trích xuất cơ sở dữ liệu qua các lệnh backup máy tính.
+- **Khóa ứng dụng bằng mã PIN (App PIN Lock):**
+  - Tính năng tùy chọn trong **Cài đặt** (mặc định tắt, linh hoạt cho người dùng).
+  - Mật mã 4 số được băm mật mã an toàn bằng **SHA-256 kèm chuỗi Salt ngẫu nhiên** qua Web Crypto API, không lưu plaintext thô.
+  - Tự động hiển thị màn hình khóa toàn màn hình với bàn phím số khi mở app hoặc khi quay lại từ thanh đa nhiệm (App Resume).
+  - Có rung phản hồi (Haptics) và hiệu ứng rung lắc (shake animation) khi nhập sai mã.
+- **Chính sách an toàn nội dung (Content Security Policy - CSP):** Chặn đứng nguy cơ tấn công XSS, cấm chèn script từ xa và cấm rò rỉ dữ liệu ra ngoài.
+- **Bảo vệ sao lưu (Backup Sanitization):** Chặn tệp sao lưu JSON > 5MB, chống Prototype Pollution (`__proto__`) và tự động khử độc chuỗi ký tự trước khi khôi phục vào SQLite.
+- **Giữ nguyên khả năng chụp màn hình:** Cho phép người dùng chụp ảnh màn hình danh sách nợ để lưu lại biên lai hoặc đối chiếu đối soát bình thường.
 
-## 3. Kiến trúc Database SQLite (Offline-First)
+### 3. 🎨 Giao diện hiện đại & Trải nghiệm tối ưu (UI/UX)
+- **Thẻ người nợ / chủ nợ thông minh:** Bố cục hiển thị tên người đầy đủ (tự xuống dòng, không bị cắt cụt), thông tin tổng nợ nổi bật ngay phía dưới tên, các nút thao tác nhanh gọn gàng bên phải.
+- **Hiệu ứng khởi động (Splash Screen Wave):** Hoạt ảnh 3 chấm sóng biển (Wave Animation) nhịp nhàng, chuyển động đồng bộ với gia tốc vật lý mềm mại.
+- **Trạng thái danh sách rỗng (Empty States):** Minh họa trực quan, gợi ý hành động thân thiện khi chưa có dữ liệu.
+- **Chế độ hiển thị:** Hỗ trợ giao diện Sáng / Tối (Dark / Light Mode) và Safe-Area Insets (tai thỏ, thanh vuốt Home của Android & iOS).
 
-Hệ thống sử dụng cơ sở dữ liệu SQLite cục bộ chuẩn hoá với 3 bảng quan hệ:
-
-### Bảng 1: `people`
-- `id` (TEXT PRIMARY KEY): Định danh duy nhất.
-- `name` (TEXT NOT NULL): Tên người.
-- `type` (TEXT NOT NULL CHECK(type IN ('DEBTOR', 'CREDITOR'))): Phân loại Con nợ hoặc Chủ nợ.
-- `created_at` (TEXT NOT NULL): Thời điểm tạo.
-
-### Bảng 2: `debt_activities`
-- `id` (TEXT PRIMARY KEY): Mã hoạt động nợ.
-- `person_id` (TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE): Khóa ngoại liên kết người.
-- `description` (TEXT NOT NULL): Nội dung hoạt động (ví dụ: *Ăn tối bún bò*, *Mượn đóng tiền nhà trọ*).
-- `created_at` (TEXT NOT NULL): Ngày phát sinh khoản nợ.
-- `original_amount` (INTEGER NOT NULL CHECK(original_amount > 0)): Số tiền ban đầu (VNĐ, số nguyên dương).
-- `remaining_amount` (INTEGER NOT NULL CHECK(remaining_amount >= 0)): Số tiền còn nợ.
-- `status` (TEXT NOT NULL CHECK(status IN ('UNPAID', 'PAID'))): Trạng thái nợ.
-
-### Bảng 3: `payment_history`
-- `id` (TEXT PRIMARY KEY): Mã lần thanh toán.
-- `activity_id` (TEXT NOT NULL REFERENCES debt_activities(id) ON DELETE CASCADE): Khóa ngoại khoản nợ.
-- `amount` (INTEGER NOT NULL CHECK(amount > 0)): Số tiền thực trả trong đợt này.
-- `paid_at` (TEXT NOT NULL): Thời điểm thanh toán.
-- `note` (TEXT): Ghi chú phương thức/lý do trả (chuyển khoản, tiền mặt...).
-
-### Quy tắc toàn vẹn dữ liệu SQLite:
-1. `PRAGMA foreign_keys = ON;`: Bật khóa ngoại, tự động xóa liên đới (CASCADE) khi xóa người.
-2. **Transaction**: Mọi thao tác thanh toán một phần hoặc cập nhật nhiều bảng đều thực thi trong một SQLite Transaction nguyên tử.
-3. **Tiền tệ VNĐ**: Sử dụng kiểu số nguyên `INTEGER` trong SQLite, loại bỏ sai số số thực.
-4. **Không tạo bản ghi thanh toán giả**: Thao tác "Đánh dấu Đã trả" chỉ cập nhật `remaining_amount = 0` và `status = 'PAID'`, tuyệt đối không tự chèn bản ghi vào `payment_history` nếu người dùng không nhập số tiền thực trả.
-5. **Bảo toàn lịch sử trả**: Khi sửa hoạt động, không cho phép sửa số tiền ban đầu nhỏ hơn tổng số tiền đã trả qua các đợt thanh toán.
-6. **Cảnh báo xóa người**: Nếu người đó còn khoản nợ chưa thanh toán (`unpaid_total > 0`), hệ thống sẽ hiển thị cảnh báo chi tiết trước khi xác nhận xóa.
-7. **Tính tổng nợ**: Chỉ tính các hoạt động có trạng thái `UNPAID`, loại bỏ các khoản đã trả.
+### 4. 📦 Sao lưu & Khôi phục độc lập
+- **Xuất dữ liệu an toàn:** Hỗ trợ chuẩn Web Share API để chia sẻ nhanh file sao lưu JSON qua Zalo, Messenger, Google Drive, Email hoặc lưu vào bộ nhớ máy.
+- **Khôi phục nguyên tử:** Quá trình phục hồi dữ liệu chạy trong một SQLite Transaction khép kín. Nếu xảy ra bất kỳ lỗi định dạng nào, hệ thống tự động hoàn tác để giữ nguyên dữ liệu hiện có.
 
 ---
 
-## 4. Hướng dẫn chạy thử và kiểm thử
+## 🛠️ Công nghệ sử dụng
 
-### Chạy kiểm thử tự động SQLite Logic (11 Kịch bản)
-```bash
-node scripts/test-sqlite-logic.mjs
+| Thành phần | Công nghệ / Thư viện |
+|---|---|
+| **Core Framework** | [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite 8](https://vite.dev/) |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) (Mobile-first, Dark Mode, Safe-area insets) |
+| **Mobile Runtime** | [Capacitor 8](https://capacitorjs.com/) (`@capacitor/android`, `@capacitor/app`, `@capacitor/haptics`) |
+| **Cơ sở dữ liệu** | [`@capacitor-community/sqlite`](https://github.com/capacitor-community/sqlite) v8.1.1 |
+| **Bảo mật** | Web Crypto API (SHA-256 + Salt), Android Manifest Hardening, CSP |
+| **Icon set** | [Lucide React](https://lucide.dev/) |
+| **Package Manager**| [pnpm](https://pnpm.io/) |
+| **CI/CD Build APK** | [GitHub Actions](https://github.com/features/actions) |
+
+---
+
+## 🗄️ Cấu trúc Cơ sở dữ liệu SQLite
+
+Ứng dụng sử dụng 3 bảng quan hệ ràng buộc khóa ngoại (Foreign Keys ON, CASCADE):
+
+```text
+┌─────────────────┐       ┌──────────────────────┐       ┌──────────────────────┐
+│     people      │ 1   * │   debt_activities    │ 1   * │   payment_history    │
+├─────────────────┤───────├──────────────────────┤───────├──────────────────────┤
+│ id (PK)         │       │ id (PK)              │       │ id (PK)              │
+│ name            │       │ person_id (FK)       │       │ activity_id (FK)     │
+│ type (DEBTOR/   │       │ description          │       │ amount (> 0)         │
+│       CREDITOR) │       │ original_amount (>0) │       │ paid_at              │
+│ created_at      │       │ remaining_amount(>=0)│       │ note                 │
+└─────────────────┘       │ status (UNPAID/PAID) │       └──────────────────────┘
+                          │ created_at           │
+                          └──────────────────────┘
 ```
-Kiểm thử tự động xác minh:
-- Tạo schema và kích hoạt Foreign Key ON.
-- Thêm người theo 2 loại DEBTOR / CREDITOR.
-- Chặn số tiền ban đầu <= 0.
-- Thanh toán một phần nhiều lần (VD: Nợ 500k -> Trả 200k -> Trả tiếp 100k -> Trả hết 200k).
-- Chặn số tiền trả vượt quá số nợ còn lại & kiểm tra rollback transaction.
-- Chuyển tự động status thành PAID khi số dư = 0.
-- Xác nhận "Đánh dấu Đã trả" không sinh payment giả.
-- Chặn sửa số tiền nhỏ hơn số tiền đã trả.
-- Tính tổng nợ loại trừ các khoản PAID.
-- Cảnh báo người còn nợ chưa thanh toán khi xóa.
-- Xóa người và kiểm tra CASCADE dọn dẹp dữ liệu con.
 
-### Chạy thử giao diện trên trình duyệt (Web Development)
+Ngoài ra còn có bảng `settings` (Key-Value) lưu cấu hình giao diện, ngôn ngữ và mã PIN băm mật mã.
+
+---
+
+## 🚀 Hướng dẫn cài đặt & Chạy ứng dụng
+
+### 1. Cài đặt môi trường
+Yêu cầu Node.js $\ge$ 20 và `pnpm`:
+```bash
+git clone https://github.com/Hkhiem-GB/SoNo.git
+cd SoNo
+pnpm install
+```
+
+### 2. Chạy thử nghiệm trên trình duyệt Web
 ```bash
 pnpm dev
 ```
-Truy cập `http://localhost:3000`.
+Truy cập: `http://localhost:3000` (hoặc cổng hiển thị trên terminal).
 
-### Biên dịch & Đồng bộ sang Android
+### 3. Chạy kiểm thử tự động SQLite Logic (11 Kịch bản)
 ```bash
+node scripts/test-sqlite-logic.mjs
+```
+
+### 4. Biên dịch và đồng bộ sang Android
+```bash
+# Biên dịch mã nguồn và đồng bộ với Capacitor Android
 pnpm build:android
 ```
-Lệnh này chạy `tsc -b && vite build` và tự động sync web assets cùng plugin `@capacitor-community/sqlite` sang thư mục Android.
 
-### Build APK tự động bằng GitHub Actions (Không cần Android Studio)
-Đẩy code lên GitHub:
+### 5. Mở trong Android Studio (nếu cần debug trực tiếp trên máy thật/giả lập)
+```bash
+pnpm exec cap open android
+```
+
+### 6. Tự động Build file APK qua GitHub Actions (Không cần Android Studio)
+Chỉ cần đẩy commit lên nhánh `main`:
 ```bash
 git add .
-git commit -m "feat: integrate SQLite database and business logic"
+git commit -m "feat: cap nhat tinh nang moi"
 git push origin main
 ```
-Truy cập tab **Actions** trên GitHub repository để tải file `app-debug.apk` về cài đặt trên điện thoại Android.
+Hệ thống GitHub Actions sẽ tự động biên dịch và tạo tệp `app-debug.apk` trong mục **Actions** > **Build Android APK** để bạn tải về cài đặt trực tiếp lên điện thoại.
+
+---
+
+## 🔒 Quy chuẩn Bảo mật & Đóng góp
+- Không đẩy các tệp môi trường, chứng chỉ ký hoặc công cụ JDK cục bộ lên Git (đã được cấu hình trong `.gitignore`).
+- Mọi truy vấn thay đổi dữ liệu nhiều bảng phải luôn được thực thi trong transaction (`dbManager.transaction(...)`).
+
+---
+
+*Phát triển bởi Hoka Team - Sổ Nợ: Quản lý nợ, rõ từng khoản.*

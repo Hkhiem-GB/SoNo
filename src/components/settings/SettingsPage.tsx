@@ -7,12 +7,17 @@ import {
   Database,
   CheckCircle2,
   AlertTriangle,
-  RotateCcw,
+  ShieldCheck,
+  KeyRound,
+  ShieldOff,
+  Lock,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useDebtStore } from '@/context/DebtContext';
+import { useSecurity } from '@/context/SecurityContext';
 import { backupService, type ValidationResult, type BackupPackage } from '@/services/backupService';
 import { RestoreConfirmModal } from '@/components/settings/RestoreConfirmModal';
+import { PinSetupModal, type PinModalMode } from '@/components/security/PinSetupModal';
 import { APP_CONFIG } from '@/config/appConfig';
 import { VietnamFlag, UsFlag } from '@/components/common/FlagIcons';
 import type { Language } from '@/types';
@@ -20,8 +25,12 @@ import type { Language } from '@/types';
 export const SettingsPage: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
   const { refreshData } = useDebtStore();
+  const { isPinSet } = useSecurity();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // PIN modal state
+  const [pinModalMode, setPinModalMode] = useState<PinModalMode | null>(null);
 
   // Backup & Restore states
   const [isExporting, setIsExporting] = useState(false);
@@ -71,6 +80,14 @@ export const SettingsPage: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setStatusMessage({
+        type: 'error',
+        text: 'Tệp sao lưu vượt quá kích thước cho phép (tối đa 5MB).',
+      });
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -142,26 +159,6 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  // Reset/seed demo test data handler
-  const handleSeedDemoData = async () => {
-    if (confirm('Nạp lại dữ liệu mẫu trải nghiệm ban đầu? Thao tác này sẽ thêm các bản ghi mẫu nếu cơ sở dữ liệu trống.')) {
-      try {
-        await backupService.seedDemoDataIfEmpty();
-        await refreshData();
-        setStatusMessage({
-          type: 'success',
-          text: t('seedSuccess'),
-        });
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Lỗi khi nạp dữ liệu mẫu';
-        setStatusMessage({
-          type: 'error',
-          text: msg,
-        });
-      }
-    }
-  };
-
   return (
     <div className="space-y-4 animate-in fade-in duration-200 pb-6">
       {/* Header */}
@@ -225,6 +222,76 @@ export const SettingsPage: React.FC = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Security & PIN Lock Card */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-5 shadow-2xs space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400">
+            <ShieldCheck className="w-4 h-4" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {t('securitySection')}
+            </h3>
+          </div>
+          <span
+            className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+              isPinSet
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/50'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200/50 dark:border-slate-700/50'
+            }`}
+          >
+            {isPinSet ? t('pinEnabled') : t('pinDisabled')}
+          </span>
+        </div>
+
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          {t('pinLockDesc')}
+        </p>
+
+        {!isPinSet ? (
+          <button
+            type="button"
+            onClick={() => setPinModalMode('setup')}
+            className="w-full p-3.5 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl text-left transition flex items-center justify-between group active:scale-[0.99]"
+          >
+            <div className="flex items-center space-x-3 min-w-0 pr-2">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                  {t('setupPin')}
+                </h4>
+                <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                  Bảo vệ dữ liệu khi người khác cầm máy
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+              Cài đặt
+            </span>
+          </button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setPinModalMode('change')}
+              className="p-3 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl transition flex items-center justify-center space-x-2 active:scale-95 text-slate-700 dark:text-slate-200 font-bold text-xs"
+            >
+              <KeyRound className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>{t('changePin')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPinModalMode('disable')}
+              className="p-3 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100/50 dark:hover:bg-rose-950/50 border border-rose-200/50 dark:border-rose-900/50 rounded-2xl transition flex items-center justify-center space-x-2 active:scale-95 text-rose-600 dark:text-rose-400 font-bold text-xs"
+            >
+              <ShieldOff className="w-4 h-4" />
+              <span>{t('disablePin')}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Data Management & Backup/Restore Card */}
@@ -295,16 +362,6 @@ export const SettingsPage: React.FC = () => {
               Nạp
             </span>
           </button>
-
-          {/* Load demo data option */}
-          <button
-            type="button"
-            onClick={handleSeedDemoData}
-            className="w-full p-3 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-500 dark:text-slate-400 rounded-xl text-left transition flex items-center space-x-2 text-xs font-medium"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>{t('seedDemo')}</span>
-          </button>
         </div>
 
         <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-slate-100 dark:border-slate-800">
@@ -331,7 +388,7 @@ export const SettingsPage: React.FC = () => {
               {t('appSlogan')}
             </p>
             <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
-              {t('appVersion')} • {APP_CONFIG.appId}
+              {t('appVersion')}
             </p>
           </div>
         </div>
@@ -345,6 +402,21 @@ export const SettingsPage: React.FC = () => {
         onClose={() => setPendingBackup(null)}
         onConfirm={handleConfirmRestore}
       />
+
+      {/* PIN Setup/Change/Disable Modal */}
+      {pinModalMode && (
+        <PinSetupModal
+          isOpen={!!pinModalMode}
+          mode={pinModalMode}
+          onClose={() => setPinModalMode(null)}
+          onSuccess={(msg) => {
+            setStatusMessage({
+              type: 'success',
+              text: msg,
+            });
+          }}
+        />
+      )}
     </div>
   );
 };

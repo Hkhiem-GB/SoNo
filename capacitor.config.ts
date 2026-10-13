@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   android: {
-    allowMixedContent: true,
+    allowMixedContent: false,
   },
   plugins: {
     CapacitorSQLite: {

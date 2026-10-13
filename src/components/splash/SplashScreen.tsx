@@ -77,11 +77,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish, isReady = 
           Quản lý nợ, rõ từng khoản
         </p>
 
-        {/* Subtle Minimal Loader indicator */}
-        <div className="mt-8 flex items-center space-x-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
-          <span className="w-2 h-2 rounded-full bg-emerald-500 opacity-80" />
-          <span className="w-2 h-2 rounded-full bg-emerald-400 opacity-60" />
+        {/* Smooth 3-dot Wave Loader indicator */}
+        <div className="mt-8 flex items-center space-x-2.5 h-6">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shadow-xs shadow-emerald-600/40 animate-wave-1" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shadow-xs shadow-emerald-600/40 animate-wave-2" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shadow-xs shadow-emerald-600/40 animate-wave-3" />
         </div>
       </div>
     </div>

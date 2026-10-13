@@ -123,6 +123,26 @@ export const translations = {
     exporting: 'Đang chuẩn bị bản sao lưu...',
     importing: 'Đang xử lý khôi phục dữ liệu...',
 
+    // Security & PIN Lock
+    securitySection: 'Bảo mật & Mã PIN',
+    pinLock: 'Khóa ứng dụng bằng mã PIN',
+    pinLockDesc: 'Yêu cầu mã PIN 4 số mỗi khi mở ứng dụng để bảo vệ thông tin nợ',
+    pinEnabled: 'Đang bật',
+    pinDisabled: 'Đang tắt',
+    setupPin: 'Cài đặt mã PIN',
+    changePin: 'Đổi mã PIN',
+    disablePin: 'Tắt mã PIN',
+    enterPinToUnlock: 'Nhập mã PIN để mở khóa',
+    pinSetupSuccess: 'Đã thiết lập mã PIN bảo mật thành công!',
+    pinChangeSuccess: 'Đã thay đổi mã PIN thành công!',
+    pinDisableSuccess: 'Đã tắt khóa mã PIN bảo mật!',
+    pinIncorrect: 'Mã PIN không chính xác. Vui lòng thử lại!',
+    pinMismatch: 'Mã PIN xác nhận không trùng khớp!',
+    enterCurrentPin: 'Nhập mã PIN hiện tại',
+    enterNewPin: 'Nhập mã PIN mới (4 chữ số)',
+    confirmNewPin: 'Nhập lại mã PIN mới để xác nhận',
+    pinLengthError: 'Mã PIN phải bao gồm đúng 4 chữ số',
+
     // Filter bar
     all: 'Tất cả',
     oweMe: 'Người khác nợ tôi',
@@ -276,6 +296,26 @@ export const translations = {
     deletePersonPrompt: 'This contact and all associated debts will be deleted.',
     exporting: 'Preparing backup file...',
     importing: 'Processing restore...',
+
+    // Security & PIN Lock
+    securitySection: 'Security & App PIN',
+    pinLock: 'Lock App with PIN',
+    pinLockDesc: 'Require a 4-digit PIN every time the app opens to secure your debt ledger',
+    pinEnabled: 'Enabled',
+    pinDisabled: 'Disabled',
+    setupPin: 'Setup PIN',
+    changePin: 'Change PIN',
+    disablePin: 'Turn Off PIN',
+    enterPinToUnlock: 'Enter PIN to unlock',
+    pinSetupSuccess: 'Security PIN has been set successfully!',
+    pinChangeSuccess: 'Security PIN changed successfully!',
+    pinDisableSuccess: 'Security PIN lock turned off!',
+    pinIncorrect: 'Incorrect PIN. Please try again!',
+    pinMismatch: 'PIN confirmation does not match!',
+    enterCurrentPin: 'Enter current PIN',
+    enterNewPin: 'Enter new 4-digit PIN',
+    confirmNewPin: 'Confirm new PIN',
+    pinLengthError: 'PIN must be exactly 4 digits',
 
     // Filter bar
     all: 'All',

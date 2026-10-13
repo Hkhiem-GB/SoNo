@@ -11,6 +11,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="description" content="Sổ Nợ - Ứng dụng quản lý sổ ghi nợ cá nhân" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' capacitor:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' blob: data: capacitor:; object-src 'none'; frame-src 'none';"
+    />
     <title>Sổ Nợ</title>
     <script>
       (function() {
@@ -22,6 +26,7 @@
     </script>
   </head>
   <body class="bg-[#e6f7f0] text-slate-900 antialiased selection:bg-emerald-500 selection:text-white">
+    <jeep-sqlite></jeep-sqlite>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -62,3 +62,43 @@ body {
   background: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
 }
+
+/* Shake animation for invalid PIN */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* Wave animation for smooth 3-dot splash loading */
+@keyframes wave-dot {
+  0%, 100% {
+    transform: translateY(0) scale(0.85);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-9px) scale(1.18);
+    opacity: 1;
+  }
+}
+
+.animate-wave-1 {
+  animation: wave-dot 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  animation-delay: 0s;
+}
+
+.animate-wave-2 {
+  animation: wave-dot 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  animation-delay: 0.2s;
+}
+
+.animate-wave-3 {
+  animation: wave-dot 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  animation-delay: 0.4s;
+}
+
+

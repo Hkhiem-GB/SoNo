@@ -129,7 +129,7 @@ export const PersonListView: React.FC<PersonListViewProps> = ({
       </div>
 
       {/* People Cards List */}
-      {people.length > 0 && (
+      {people.length > 0 ? (
         <div className="space-y-2.5">
           {people.map((person) => (
             <PersonCard
@@ -140,6 +140,40 @@ export const PersonListView: React.FC<PersonListViewProps> = ({
               onDelete={() => setDeletingPerson(person)}
             />
           ))}
+        </div>
+      ) : (
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xs border border-slate-200/80 dark:border-slate-800 rounded-3xl p-8 text-center space-y-4 shadow-xs mt-2">
+          <div
+            className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center ${
+              isDebtor
+                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
+                : 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400'
+            }`}
+          >
+            <UserPlus className="w-7 h-7" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-bold text-base text-slate-800 dark:text-slate-100">
+              {isDebtor ? (language === 'vi' ? 'Chưa có con nợ nào' : 'No debtors yet') : (language === 'vi' ? 'Chưa có chủ nợ nào' : 'No creditors yet')}
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+              {isDebtor
+                ? (language === 'vi' ? 'Thêm người đang nợ bạn tiền để theo dõi các khoản nợ và trả nợ.' : 'Add people who owe you money to track debts and repayments.')
+                : (language === 'vi' ? 'Thêm người mà bạn đang nợ tiền để quản lý thanh toán kịp thời.' : 'Add people you owe money to manage payments on time.')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAddOpen(true)}
+            className={`px-5 py-2.5 rounded-2xl text-white font-bold text-xs shadow-md transition active:scale-95 inline-flex items-center space-x-2 ${
+              isDebtor
+                ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+                : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+            }`}
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>{isDebtor ? t('addDebtor') : t('addCreditor')}</span>
+          </button>
         </div>
       )}
 

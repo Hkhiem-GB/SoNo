@@ -33,3 +33,9 @@ android/app/release/*.keystore
 android/app/release/*.jks
 *.apk
 *.aab
+
+# Local JDK / Build tools
+oracleJdk*
+jdk*
+*jdk*
+

@@ -52,8 +52,13 @@ export const DebtProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const actsMap: Record<string, Activity[]> = {};
       await Promise.all(
         allPeople.map(async (p) => {
-          const acts = await debtActivityRepository.getByPersonId(p.id);
-          actsMap[p.id] = acts;
+          try {
+            const acts = await debtActivityRepository.getByPersonId(p.id);
+            actsMap[p.id] = acts;
+          } catch (e) {
+            console.warn(`[DebtContext] Failed to load activities for person ${p.id}:`, e);
+            actsMap[p.id] = [];
+          }
         })
       );
       setActivitiesMap(actsMap);

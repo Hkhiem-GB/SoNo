@@ -9,6 +9,8 @@ import { BottomNav, type MainTab } from '@/components/layout/BottomNav';
 import { PersonListView } from '@/components/debts/PersonListView';
 import { PersonDetailView } from '@/components/debts/PersonDetailView';
 import { SettingsPage } from '@/components/settings/SettingsPage';
+import { SecurityProvider, useSecurity } from '@/context/SecurityContext';
+import { PinLockScreen } from '@/components/security/PinLockScreen';
 
 const MainApp: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -16,6 +18,7 @@ const MainApp: React.FC = () => {
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
 
   const { isDbReady, isLoading, dbError, refreshData, getPerson } = useDebtStore();
+  const { isPinSet, isLocked } = useSecurity();
 
   const handleTabChange = (tab: MainTab) => {
     setActiveTab(tab);
@@ -45,6 +48,9 @@ const MainApp: React.FC = () => {
 
   return (
     <>
+      {/* Security PIN Lock Screen: Displays full-screen when enabled and locked */}
+      {isPinSet && isLocked && <PinLockScreen />}
+
       {/* Stage 1: Seamless Splash Screen with SQLite readiness sync & hard timeout fallback */}
       {showSplash && (
         <SplashScreen
@@ -122,7 +128,9 @@ export default function App() {
     <ThemeProvider>
       <LanguageProvider>
         <DebtProvider>
-          <MainApp />
+          <SecurityProvider>
+            <MainApp />
+          </SecurityProvider>
         </DebtProvider>
       </LanguageProvider>
     </ThemeProvider>

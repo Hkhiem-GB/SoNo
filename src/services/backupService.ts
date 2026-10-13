@@ -2,6 +2,11 @@ import { dbManager } from '@/database/sqliteConnection';
 import { APP_CONFIG } from '@/config/appConfig';
 import { seedInitialDataIfEmpty } from '@/database/seed';
 
+function sanitizeString(val: string): string {
+  if (!val) return '';
+  return val.replace(/<[^>]*>?/gm, '').trim();
+}
+
 export interface BackupPerson {
   id: string;
   name: string;
@@ -151,6 +156,19 @@ export const backupService = {
    * Deeply validates the structure, foreign keys, IDs, amounts, and statuses of a backup JSON file
    */
   validateBackup(jsonString: string): ValidationResult {
+    // 0. Security checks: size limit (5MB) & Prototype Pollution prevention
+    if (jsonString.length > 5 * 1024 * 1024) {
+      return { isValid: false, error: 'Kích thước tệp sao lưu vượt quá giới hạn an toàn (tối đa 5MB).' };
+    }
+
+    if (
+      jsonString.includes('"__proto__"') ||
+      jsonString.includes('"constructor"') ||
+      jsonString.includes('"prototype"')
+    ) {
+      return { isValid: false, error: 'Tệp sao lưu chứa thuộc tính không hợp lệ hoặc không an toàn.' };
+    }
+
     let parsed: unknown;
     try {
       parsed = JSON.parse(jsonString);
@@ -298,7 +316,7 @@ export const backupService = {
       for (const p of backup.people) {
         await dbManager.run(
           'INSERT INTO people (id, name, type, created_at) VALUES (?, ?, ?, ?);',
-          [p.id, p.name.trim(), p.type.toUpperCase(), p.created_at]
+          [p.id, sanitizeString(p.name), p.type.toUpperCase(), p.created_at]
         );
       }
 
@@ -310,7 +328,7 @@ export const backupService = {
           [
             da.id,
             da.person_id,
-            da.description.trim(),
+            sanitizeString(da.description),
             da.created_at,
             Math.round(da.original_amount),
             Math.round(da.remaining_amount),
@@ -324,7 +342,13 @@ export const backupService = {
         await dbManager.run(
           `INSERT INTO payment_history (id, activity_id, amount, paid_at, note)
            VALUES (?, ?, ?, ?, ?);`,
-          [ph.id, ph.activity_id, Math.round(ph.amount), ph.paid_at, ph.note ? ph.note.trim() : null]
+          [
+            ph.id,
+            ph.activity_id,
+            Math.round(ph.amount),
+            ph.paid_at,
+            ph.note ? sanitizeString(ph.note) : null,
+          ]
         );
       }
     });

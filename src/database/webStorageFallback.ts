@@ -398,24 +398,7 @@ export class WebStorageFallback {
   }
 
   public seedDemoIfEmpty(): void {
-    if (this.state.people.length > 0) return;
-    this.state.people = [
-      { id: 'p-1', name: 'Nguyễn Văn An', type: 'DEBTOR', created_at: '2026-10-01T10:00:00Z' },
-      { id: 'p-2', name: 'Trần Quốc Huy', type: 'DEBTOR', created_at: '2026-10-03T14:00:00Z' },
-      { id: 'p-3', name: 'Hoàng Minh Tuấn', type: 'CREDITOR', created_at: '2026-10-01T09:00:00Z' },
-      { id: 'p-4', name: 'Chị Lan Tạp Hóa', type: 'CREDITOR', created_at: '2026-10-09T18:00:00Z' },
-    ];
-    this.state.debt_activities = [
-      { id: 'act-1', person_id: 'p-1', description: 'Ốc anh béo', created_at: '2026-10-10T12:00:00Z', original_amount: 250000, remaining_amount: 0, status: 'PAID' },
-      { id: 'act-2', person_id: 'p-1', description: 'Uống bia ở Cây Xanh', created_at: '2026-10-07T20:30:00Z', original_amount: 300000, remaining_amount: 300000, status: 'UNPAID' },
-      { id: 'act-3', person_id: 'p-2', description: 'Tiền ăn trưa bún bò', created_at: '2026-10-05T12:15:00Z', original_amount: 60000, remaining_amount: 60000, status: 'UNPAID' },
-      { id: 'act-4', person_id: 'p-3', description: 'Mượn đóng tiền nhà trọ', created_at: '2026-10-01T09:00:00Z', original_amount: 1500000, remaining_amount: 1500000, status: 'UNPAID' },
-      { id: 'act-5', person_id: 'p-4', description: 'Ghi sổ gạo và gia vị', created_at: '2026-10-09T18:00:00Z', original_amount: 320000, remaining_amount: 320000, status: 'UNPAID' },
-    ];
-    this.state.payment_history = [
-      { id: 'pay-1', activity_id: 'act-1', amount: 250000, paid_at: '2026-10-10T14:00:00Z', note: 'Thanh toán chuyển khoản MoMo' },
-    ];
-    this.saveToStorage();
+    // Fresh install mode: No demo data is inserted.
   }
 }
 

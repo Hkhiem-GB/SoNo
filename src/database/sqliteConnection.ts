@@ -3,7 +3,6 @@ import { Capacitor } from '@capacitor/core';
 import { defineCustomElements as jeepSqlite } from 'jeep-sqlite/loader';
 import { APP_CONFIG } from '@/config/appConfig';
 import { SCHEMA_STATEMENTS } from '@/database/schema';
-import { seedInitialDataIfEmpty } from '@/database/seed';
 import { WebStorageFallback } from '@/database/webStorageFallback';
 
 class DatabaseManager {
@@ -88,13 +87,6 @@ class DatabaseManager {
 
         this.isInitialized = true;
 
-        // 4. Seed initial realistic data if DB is empty
-        try {
-          await seedInitialDataIfEmpty();
-        } catch (seedErr) {
-          console.warn('[Database] Seed initial data notice:', seedErr);
-        }
-
         if (platform === 'web' && this.sqliteConnection) {
           try {
             await this.sqliteConnection.saveToStore(APP_CONFIG.dbName);
@@ -112,7 +104,6 @@ class DatabaseManager {
           console.log('[Database] Seamlessly activating high-performance offline WebStorageFallback engine...');
           this.useFallback = true;
           this.isInitialized = true;
-          WebStorageFallback.getInstance().seedDemoIfEmpty();
           return;
         }
 

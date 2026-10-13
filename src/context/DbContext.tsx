@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { dbManager } from '@/database/sqliteConnection';
-import { backupService } from '@/services/backupService';
 
 interface DbContextType {
   isReady: boolean;
@@ -26,8 +25,6 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     async function init() {
       try {
         await dbManager.initialize();
-        // Seed initial sample data if DB is completely fresh
-        await backupService.seedDemoDataIfEmpty();
 
         if (isMounted) {
           setIsReady(true);

@@ -1,6 +1,5 @@
 import { dbManager } from '@/database/sqliteConnection';
 import { APP_CONFIG } from '@/config/appConfig';
-import { seedInitialDataIfEmpty } from '@/database/seed';
 
 function sanitizeString(val: string): string {
   if (!val) return '';
@@ -352,13 +351,5 @@ export const backupService = {
         );
       }
     });
-  },
-
-  /**
-   * Seed demo test data if needed
-   */
-  async seedDemoDataIfEmpty(): Promise<boolean> {
-    await seedInitialDataIfEmpty();
-    return true;
   },
 };
